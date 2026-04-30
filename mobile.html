@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Share Your Photo</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #8cd6ff; }
+        button { padding: 15px 30px; font-size: 18px; background: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>Love Means Protection</h2>
+    <p>Upload a photo to join the wall!</p>
+    
+    <input type="file" id="fileInput" accept="image/*" capture="camera" style="display:none;">
+    <button onclick="document.getElementById('fileInput').click()">Take a Photo</button>
+    <p id="status"></p>
+
+    <script>
+        // PASTE YOUR GOOGLE SCRIPT WEB APP URL HERE
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyb5VB_8xCDQk5b05TwxJIa_hWk02ujSca7BGhI3lGHmCbPAyg_HAqrDlzeWFAdxIYCA/exec';
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('status').innerText = "Uploading to screen...";
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Remove the "data:image/jpeg;base64," part
+                const base64Data = e.target.result.split(',')[1]; 
+
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name: file.name,
+                        type: file.type,
+                        base64: base64Data
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status').innerText = "Success! Look at the big screen.";
+                })
+                .catch(err => {
+                    document.getElementById('status').innerText = "Upload failed. Try again.";
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+</html>

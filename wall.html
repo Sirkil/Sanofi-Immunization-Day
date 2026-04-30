@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Photo Wall</title>
+    <style>
+        body { background: #8cd6ff; overflow: hidden; margin: 0; }
+        #photo-container { position: relative; width: 100vw; height: 100vh; }
+        
+        .polaroid {
+            position: absolute;
+            background: white;
+            padding: 10px 10px 30px 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            width: 200px;
+            /* Simple fade-in animation */
+            animation: fadeIn 1s ease-in-out; 
+        }
+        .polaroid img { width: 100%; height: auto; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div id="photo-container"></div>
+
+    <script>
+        // PASTE YOUR GOOGLE SCRIPT WEB APP URL HERE
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyb5VB_8xCDQk5b05TwxJIa_hWk02ujSca7BGhI3lGHmCbPAyg_HAqrDlzeWFAdxIYCA/exec';
+        let displayedPhotos = new Set(); // Keep track of what's already on screen
+
+        function fetchPhotos() {
+            fetch(SCRIPT_URL)
+                .then(response => response.json())
+                .then(fileIds => {
+                    fileIds.forEach(id => {
+                        // If we haven't seen this photo yet, add it to the screen
+                        if (!displayedPhotos.has(id)) {
+                            displayedPhotos.add(id);
+                            displayPhoto(id);
+                        }
+                    });
+                });
+        }
+
+        function displayPhoto(fileId) {
+            const container = document.getElementById('photo-container');
+            const div = document.createElement('div');
+            div.className = 'polaroid';
+            
+            // This is the special Google Drive URL trick to display images directly
+            const imgUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+            div.innerHTML = `<img src="${imgUrl}">`;
+
+            // Randomize position and rotation
+            const randomX = Math.floor(Math.random() * (window.innerWidth - 250));
+            const randomY = Math.floor(Math.random() * (window.innerHeight - 250));
+            const randomRotation = Math.floor(Math.random() * 30) - 15; // Between -15 and 15 degrees
+
+            div.style.left = `${randomX}px`;
+            div.style.top = `${randomY}px`;
+            div.style.transform = `rotate(${randomRotation}deg)`;
+
+            container.appendChild(div);
+        }
+
+        // Check for new photos every 5 seconds (5000 milliseconds)
+        setInterval(fetchPhotos, 5000);
+        fetchPhotos(); // Run once immediately on load
+    </script>
+</body>
+</html>
