@@ -19,8 +19,8 @@
     /* Adjusted screen container to use more width */
     .screen {
       display: none; 
-      width: 90%; /* Takes up 90% of the screen width */
-      max-width: 450px; /* Prevents it from getting too wide on desktops */
+      width: 90%; 
+      max-width: 450px; 
       height: 100%; 
       flex-direction: column; align-items: center; justify-content: center;
       text-align: center;
@@ -44,6 +44,13 @@
     }
     button:active { transform: scale(0.95); }
     button:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+    /* Timer Display */
+    #timer-display {
+      font-size: 1.3rem; font-weight: bold; color: #ffeb3b;
+      margin-bottom: 15px; background: rgba(0,0,0,0.2); 
+      padding: 8px 20px; border-radius: 20px;
+    }
 
     /* Adjusted options for better vertical fit */
     #options-container {
@@ -89,9 +96,11 @@
 
   <!-- Screen 3: Quiz Flow -->
   <div id="quiz-screen" class="screen">
+    <div id="timer-display">⏱️ 10s</div>
     <h3 id="question-text"></h3>
     <div id="options-container"></div>
     <p id="progress-text" style="margin-top: 20px; font-size: 0.9rem; opacity: 0.8;"></p>
+    <p id="current-score-display" style="font-size: 0.9rem; font-weight: bold;">Score: 0</p>
   </div>
 
   <!-- Screen 4: Results -->
@@ -102,7 +111,7 @@
     <p>Thank you for participating in our World Immunization Week Quiz! 🌍💙</p>
   </div>
 
-  <!-- Dialog Box (Correct/Wrong) -->
+  <!-- Dialog Box (Correct/Wrong/Timeout) -->
   <div id="dialog-overlay">
     <div class="dialog-box">
       <div id="dialog-icon" class="confetti"></div>
@@ -113,7 +122,10 @@
   </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfZlzQTjjVxhW6v4JyCZteNSp9P-paiannXvrDOyoWbneMNr4UwZrX28cdv85EDf4_/exec";
+    // ==========================================
+    // PASTE YOUR GOOGLE SCRIPT EXEC URL HERE
+    // ==========================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3vR8f2SRDHLjKRCor-W84R4ZoaTyCcJKggu2mwmhlQ40n8gfXoKue0je-AK0k--7l/exec";
 
     const questions = [
       { q: "Q1 — HEXAXIM 💉\nHow many diseases does it protect against in a single injection?", opts: ["3 diseases", "4 diseases", "5 diseases", "6 diseases"], ans: 3, fact: "Hexaxim is the '6-in-1' vaccine — one single shot protects against Diphtheria, Tetanus, Pertussis, Polio, Hepatitis B, and Hib." },
@@ -135,13 +147,16 @@
     let currentQ = 0;
     let score = 0;
     let userData = { q: [] };
+    
+    // Timer Variables
+    let timerInterval;
+    let timeLeft = 10;
 
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
       document.getElementById(id).classList.add('active-screen');
     }
 
-    // UPDATED: Using Fetch API to talk to Google Apps Script externally
     function registerUser() {
       const name = document.getElementById('userName').value.trim();
       const phone = document.getElementById('userPhone').value.trim();
@@ -161,7 +176,7 @@
       fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "checkUser", phone: phone }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" } // Using text/plain avoids CORS errors
+        headers: { "Content-Type": "text/plain;charset=utf-8" } 
       })
       .then(response => response.json())
       .then(data => {
@@ -186,6 +201,7 @@
       currentQ = 0;
       score = 0;
       userData.q = [];
+      document.getElementById('current-score-display').innerText = `Score: ${score}`;
       showScreen('quiz-screen');
       loadQuestion();
     }
@@ -205,13 +221,40 @@
         btn.onclick = () => checkAnswer(index);
         optsContainer.appendChild(btn);
       });
+
+      // Start the Timer
+      timeLeft = 10;
+      const timerDisplay = document.getElementById('timer-display');
+      timerDisplay.innerText = `⏱️ ${timeLeft}s`;
+      timerDisplay.style.color = "#ffeb3b"; // Reset color to yellow
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerDisplay.innerText = `⏱️ ${timeLeft}s`;
+        
+        // Make timer turn red when low
+        if (timeLeft <= 3) {
+          timerDisplay.style.color = "#ff4c4c"; 
+        }
+
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          checkAnswer(-1); // -1 triggers the timeout state
+        }
+      }, 1000);
     }
 
     function checkAnswer(selectedIndex) {
+      clearInterval(timerInterval); // Stop timer immediately
+
       const qData = questions[currentQ];
-      const isCorrect = (selectedIndex === qData.ans);
+      const isTimeout = (selectedIndex === -1);
+      const isCorrect = !isTimeout && (selectedIndex === qData.ans);
       
-      userData.q.push(qData.opts[selectedIndex]);
+      // Save Answer string for Sheets
+      let recordedAnswer = isTimeout ? "Time Out" : qData.opts[selectedIndex];
+      userData.q.push(recordedAnswer);
       
       const dialog = document.getElementById('dialog-overlay');
       const icon = document.getElementById('dialog-icon');
@@ -219,11 +262,20 @@
       const factText = document.getElementById('dialog-fact');
 
       if (isCorrect) {
-        score++;
+        // Calculate Score: 5 base points + 1 point per second left
+        const pointsEarned = 5 + timeLeft;
+        score += pointsEarned;
+        document.getElementById('current-score-display').innerText = `Score: ${score}`;
+
         icon.innerText = "🎉";
-        title.innerText = "Correct!";
+        title.innerText = `Correct! +${pointsEarned} Pts`;
         title.style.color = "#28a745";
         factText.innerHTML = `<b>Fact:</b> ${qData.fact}`;
+      } else if (isTimeout) {
+        icon.innerText = "⏳";
+        title.innerText = "Time's Up!";
+        title.style.color = "#dc3545";
+        factText.innerHTML = `<b>Correct Answer:</b> ${qData.opts[qData.ans]}<br><br><b>Fact:</b> ${qData.fact}`;
       } else {
         icon.innerText = "❌";
         title.innerText = "Not Quite!";
@@ -245,13 +297,14 @@
       }
     }
 
-    // UPDATED: Saving results via Fetch API
     function finishQuiz() {
       let badge, title;
-      if (score === 14) { badge = "🥇"; title = "Vaccine Champion! You're a true Sanofi ambassador!"; }
-      else if (score >= 12) { badge = "⭐"; title = "Vaccine Expert — Impressive knowledge!"; }
-      else if (score >= 10) { badge = "💉"; title = "Well-Informed — Great awareness!"; }
-      else if (score >= 8) { badge = "📚"; title = "Learning Journey — Keep exploring!"; }
+      
+      // Adjusted grading scale for max 210 points (14 questions * 15 max points)
+      if (score >= 195) { badge = "🥇"; title = "Vaccine Champion! You're a true Sanofi ambassador!"; }
+      else if (score >= 160) { badge = "⭐"; title = "Vaccine Expert — Impressive knowledge!"; }
+      else if (score >= 120) { badge = "💉"; title = "Well-Informed — Great awareness!"; }
+      else if (score >= 80) { badge = "📚"; title = "Learning Journey — Keep exploring!"; }
       else { badge = "🔬"; title = "Discovery Mode — The science is waiting for you!"; }
 
       let payload = {
@@ -264,7 +317,7 @@
       };
 
       document.getElementById('final-badge').innerText = badge;
-      document.getElementById('final-score').innerText = `You scored ${score}/14`;
+      document.getElementById('final-score').innerText = `You scored ${score} Points!`;
       document.getElementById('final-title').innerText = title;
       showScreen('result-screen');
 
