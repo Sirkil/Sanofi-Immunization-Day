@@ -21,13 +21,10 @@ const downloadSub = document.getElementById('downloadSub');
 let selectedFiles = [];
 let downloadAction = null;
 
-// --- Load Static Layers (Z-index 1 & 3) ---
-const backgroundImage = new Image();
-// backgroundImage.src = 'Background Layer.jpeg'; // Ensure this matches your folder filename
-
+// --- Load Static Layer ---
 const overlayImage = new Image();
-// NOTE: For the layers underneath to show, this MUST be a PNG with transparency.
-overlayImage.src = 'linkedin_filter_frame.png'; 
+// Ensure this filename matches the frame image you want to use
+overlayImage.src = 'linkedin Frame.png'; 
 
 // --- Upload & Drag/Drop Logic ---
 const triggerUpload = () => imageUpload.click();
@@ -117,12 +114,12 @@ createBtn.addEventListener('click', async function() {
             const zipUrl = URL.createObjectURL(zipBlob);
 
             downloadTitle.textContent = "DOWNLOAD ZIP ARCHIVE";
-            downloadSub.textContent = "(generated Images with LinkedIn filter.zip)";
+            downloadSub.textContent = "(generated Images.zip)";
             
             downloadAction = () => {
                 const a = document.createElement('a');
                 a.href = zipUrl;
-                a.download = 'generated Images with LinkedIn filter.zip';
+                a.download = 'generated Images.zip';
                 a.click();
             };
         }
@@ -161,34 +158,34 @@ function processSingleImage(file) {
                 offCanvas.height = 1080;
                 const offCtx = offCanvas.getContext('2d');
 
-                // Z-Index 1: Background Layer
-                offCtx.drawImage(backgroundImage, 0, 0, offCanvas.width, offCanvas.height);
+                // Clear transparent canvas
+                offCtx.clearRect(0, 0, 1080, 1080);
 
-                // Z-Index 2: User Image
+                // Z-Index 1: User Image (Circularly Clipped)
                 offCtx.save(); 
                 offCtx.beginPath();
-                offCtx.rect(0, 0, 1080, 900); 
+                // Create a circle at x=540, y=540 with radius=540
+                offCtx.arc(540, 540, 540, 0, Math.PI * 2); 
                 offCtx.clip(); 
 
-                const targetWidth = 1080;
-                const targetHeight = 900; 
-                const scale = Math.min(targetWidth / userImage.width, targetHeight / userImage.height);
+                // Scale image to fill the 1080x1080 canvas completely (object-fit: cover)
+                const scale = Math.max(1080 / userImage.width, 1080 / userImage.height);
+                const drawWidth = userImage.width * scale;
+                const drawHeight = userImage.height * scale;
                 
-                const drawWidth = Math.floor(userImage.width * scale);
-                const drawHeight = Math.floor(userImage.height * scale);
-                const x = Math.floor((targetWidth / 2) - (drawWidth / 2));
-                const y = Math.floor((targetHeight / 2) - (drawHeight / 2));
+                // Center the image
+                const x = (1080 - drawWidth) / 2;
+                const y = (1080 - drawHeight) / 2;
 
-                // Directly draw the user image without the filter/temp canvas
                 offCtx.drawImage(userImage, x, y, drawWidth, drawHeight);
                 offCtx.restore(); 
 
-                // Z-Index 3: Foreground / Overlay (Full Size)
-                offCtx.drawImage(overlayImage, 0, 0, offCanvas.width, offCanvas.height);
+                // Z-Index 2: Foreground Overlay Image
+                offCtx.drawImage(overlayImage, 0, 0, 1080, 1080);
 
                 const originalName = file.name;
                 const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
-                const newFileName = `${nameWithoutExt} With filter.png`; 
+                const newFileName = `${nameWithoutExt} Cropped.png`; 
 
                 offCanvas.toBlob((blob) => {
                     resolve({
@@ -214,29 +211,25 @@ function showMainPreview(file) {
         img.onload = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Z-Index 1: Background
-            ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-            
-            // Z-Index 2: User Image
+            // Z-Index 1: User Image (Circularly Clipped)
             ctx.save(); 
             ctx.beginPath();
-            ctx.rect(0, 0, 1080, 900); 
+            ctx.arc(540, 540, 540, 0, Math.PI * 2); 
             ctx.clip();
 
-            const targetWidth = 1080;
-            const targetHeight = 900; 
-            const imgScale = Math.min(targetWidth / img.width, targetHeight / img.height);
+            // Scale image to fill the 1080x1080 canvas completely (object-fit: cover)
+            const scale = Math.max(1080 / img.width, 1080 / img.height);
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
             
-            const drawWidth = Math.floor(img.width * imgScale);
-            const drawHeight = Math.floor(img.height * imgScale);
-            const x = Math.floor((targetWidth / 2) - (drawWidth / 2));
-            const y = Math.floor((targetHeight / 2) - (drawHeight / 2));
+            // Center the image
+            const x = (1080 - drawWidth) / 2;
+            const y = (1080 - drawHeight) / 2;
             
-            // Directly draw the image without the filter/temp canvas
             ctx.drawImage(img, x, y, drawWidth, drawHeight);
             ctx.restore(); 
-            
-            // Z-Index 3: Foreground Overlay (Full Size)
+
+            // Z-Index 2: Foreground Overlay Image
             ctx.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
         };
         img.src = event.target.result;
