@@ -3,37 +3,88 @@
 <head>
     <title>Live Photo Wall</title>
     <style>
-        body { background: #8cd6ff; overflow: hidden; margin: 0; }
-        #photo-container { position: relative; width: 100vw; height: 100vh; }
+        body { 
+            /* Fixed exact dimensions for the big screen */
+            width: 1701px;
+            height: 1134px;
+            background: url('wall.png') no-repeat center center; 
+            background-size: cover; 
+            overflow: hidden; 
+            margin: 0; 
+            position: relative;
+        }
+        
+        #photo-container { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            top: 0;
+            left: 0;
+        }
         
         .polaroid {
             position: absolute;
-            background: white;
-            padding: 10px 10px 30px 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            width: 200px;
-            /* Simple fade-in animation */
-            animation: fadeIn 1s ease-in-out; 
+            /* Removed padding and white background to show raw image */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            width: 120px; /* Size of the image on the wall */
+            animation: fadeIn 3s ease-in-out; 
         }
-        .polaroid img { width: 100%; height: auto; }
+        
+        .polaroid img { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+        }
         
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
+    <!-- Colored zones to visualize the restricted areas -->
+    <div id="outer-frame"></div>
+    <div id="exclusion-zone"></div>
     <div id="photo-container"></div>
 
     <script>
         // PASTE YOUR GOOGLE SCRIPT WEB APP URL HERE
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyb5VB_8xCDQk5b05TwxJIa_hWk02ujSca7BGhI3lGHmCbPAyg_HAqrDlzeWFAdxIYCA/exec';
-        let displayedPhotos = new Set(); // Keep track of what's already on screen
+        let displayedPhotos = new Set();
+
+        // 1. Define Screen Dimensions
+        const SCREEN_W = 1701;
+        const SCREEN_H = 1134;
+
+        // 2. Define the exact restricted area (middle column for Logo + QR)
+        const EXCLUDE_X_MIN = SCREEN_W * 0.30; 
+        const EXCLUDE_X_MAX = SCREEN_W * 0.70; 
+        const EXCLUDE_Y_MIN = SCREEN_H * 0.02; 
+        const EXCLUDE_Y_MAX = SCREEN_H * 0.75;
+
+        // 3. NEW: Define the Outer Frame Margin (in pixels)
+        // Adjust this number to make the frame thicker or thinner
+        const FRAME_MARGIN = 20; 
+
+        // Set the visible exclusion zone boxes on the screen
+        document.addEventListener("DOMContentLoaded", () => {
+            // Inner exclusion zone (Red)
+            const ez = document.getElementById('exclusion-zone');
+            ez.style.left = EXCLUDE_X_MIN + 'px';
+            ez.style.width = (EXCLUDE_X_MAX - EXCLUDE_X_MIN) + 'px';
+            ez.style.top = EXCLUDE_Y_MIN + 'px';
+            ez.style.height = (EXCLUDE_Y_MAX - EXCLUDE_Y_MIN) + 'px';
+
+            // Outer frame (Green)
+            const outer = document.getElementById('outer-frame');
+            outer.style.width = SCREEN_W + 'px';
+            outer.style.height = SCREEN_H + 'px';
+            outer.style.borderWidth = FRAME_MARGIN + 'px';
+        });
 
         function fetchPhotos() {
             fetch(SCRIPT_URL)
                 .then(response => response.json())
                 .then(fileIds => {
                     fileIds.forEach(id => {
-                        // If we haven't seen this photo yet, add it to the screen
                         if (!displayedPhotos.has(id)) {
                             displayedPhotos.add(id);
                             displayPhoto(id);
@@ -42,30 +93,55 @@
                 });
         }
 
+        function getRandomPosition() {
+            const imgBoxWidth = 140; // Must match the CSS width
+            const imgBoxHeight = 180; // Estimated height so it doesn't clip the bottom
+            
+            let x, y;
+            let validPosition = false;
+            let safetyCounter = 0; 
+
+            while (!validPosition && safetyCounter < 500) {
+                // NEW: Ensure the X and Y coordinates stay strictly inside the Outer Frame
+                x = Math.floor(Math.random() * (SCREEN_W - imgBoxWidth - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
+                y = Math.floor(Math.random() * (SCREEN_H - imgBoxHeight - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
+
+                // Calculate the edges of the placed image
+                const imgRightEdge = x + imgBoxWidth;
+                const imgBottomEdge = y + imgBoxHeight;
+
+                // Check if any part of the image enters the inner exclusion zone
+                const overlapsX = (x < EXCLUDE_X_MAX) && (imgRightEdge > EXCLUDE_X_MIN);
+                const overlapsY = (y < EXCLUDE_Y_MAX) && (imgBottomEdge > EXCLUDE_Y_MIN);
+
+                if (!(overlapsX && overlapsY)) {
+                    validPosition = true;
+                }
+                safetyCounter++;
+            }
+            return { x, y };
+        }
+
         function displayPhoto(fileId) {
             const container = document.getElementById('photo-container');
             const div = document.createElement('div');
             div.className = 'polaroid';
             
-            // This is the special Google Drive URL trick to display images directly
             const imgUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
             div.innerHTML = `<img src="${imgUrl}">`;
 
-            // Randomize position and rotation
-            const randomX = Math.floor(Math.random() * (window.innerWidth - 250));
-            const randomY = Math.floor(Math.random() * (window.innerHeight - 250));
-            const randomRotation = Math.floor(Math.random() * 30) - 15; // Between -15 and 15 degrees
+            const safePos = getRandomPosition();
+            const randomRotation = Math.floor(Math.random() * 30) - 15;
 
-            div.style.left = `${randomX}px`;
-            div.style.top = `${randomY}px`;
+            div.style.left = `${safePos.x}px`;
+            div.style.top = `${safePos.y}px`;
             div.style.transform = `rotate(${randomRotation}deg)`;
 
             container.appendChild(div);
         }
 
-        // Check for new photos every 5 seconds (5000 milliseconds)
         setInterval(fetchPhotos, 5000);
-        fetchPhotos(); // Run once immediately on load
+        fetchPhotos(); 
     </script>
 </body>
 </html>
