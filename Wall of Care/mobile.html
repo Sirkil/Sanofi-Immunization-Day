@@ -9,12 +9,10 @@
             text-align: center; 
             margin: 0;
             padding: 0;
-            /* Set the uploaded image as the background */
-            background: url('mobile background.jpeg') no-repeat center center fixed; 
+            background: url('mobile background.jpg') no-repeat center center fixed; 
             background-size: cover;
             min-height: 100vh;
             
-            /* Center the content vertically and horizontally */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -22,31 +20,43 @@
         }
 
         .content-container {
-            /* Pull the container up closer to the text */
             margin-top: -10vh; 
             width: 100%;
             padding: 20px;
             box-sizing: border-box;
             
-            /* Make this relative so the absolute items stay attached to this section */
             position: relative; 
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
+        /* New container to hold the buttons side-by-side */
+        .button-group {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 15px; /* Adds space between the buttons */
+            width: 100%;
+            max-width: 400px; /* Prevents them from getting too wide on tablets */
+            z-index: 2;
+        }
+
         button { 
-            /* Fixed dimensions to ensure exact same size on all mobile screens */
-            width: 260px;
+            /* Let the buttons share the available width equally */
+            flex: 1;
             height: 60px;
-            margin: 0 auto;
+            margin: 0; 
             
-            /* Flex properties to keep text perfectly centered */
             display: flex;
             align-items: center;
             justify-content: center;
+            text-align: center;
+            padding: 0 10px;
 
-            font-size: 20px; 
+            /* Slightly smaller font to ensure "Upload from Phone" fits on mobile */
+            font-size: 16px; 
+            line-height: 1.2;
             font-weight: bold;
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; 
             color: #333;
@@ -55,14 +65,12 @@
             border-radius: 50px; 
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            /* Z-index keeps the button clickable on top */
-            z-index: 2; 
         }
         
         #status {
-            /* Absolute position prevents it from pushing the button up */
+            /* Restored to original position since buttons are back on one row */
             position: absolute;
-            top: 85px; /* Sits just below the 60px button */
+            top: 85px; 
             width: 100%;
             margin: 0;
             font-weight: bold;
@@ -71,11 +79,11 @@
         }
 
         #preview { 
-            /* Absolute position so it floats beneath the button without moving it */
+            /* Restored to original position */
             position: absolute;
-            top: 110px; /* Sits below the status text */
+            top: 110px; 
             max-width: 80%; 
-            max-height: 45vh; /* Prevents the image from overflowing the bottom of the screen */
+            max-height: 45vh; 
             object-fit: contain;
             border-radius: 12px; 
             display: none; 
@@ -85,8 +93,16 @@
 </head>
 <body>
     <div class="content-container">
+        <!-- Hidden Inputs -->
         <input type="file" id="fileInput" accept="image/*" capture="camera" style="display:none;">
-        <button onclick="document.getElementById('fileInput').click()">Take a Photo</button>
+        <input type="file" id="uploadInput" accept="image/*" style="display:none;">
+        
+        <!-- Button Group for Side-by-Side Layout -->
+        <div class="button-group">
+            <button onclick="document.getElementById('fileInput').click()">Take a Photo</button>
+            <button onclick="document.getElementById('uploadInput').click()">Upload from Phone</button>
+        </div>
+
         <p id="status"></p>
         
         <!-- Image preview element -->
@@ -100,7 +116,7 @@
         // Define the new frame image source
         const BORDER_IMAGE_SRC = 'Frame.png';
 
-        document.getElementById('fileInput').addEventListener('change', function(event) {
+        function handleImageSelection(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -112,7 +128,10 @@
                 createCompositeImage(userImageUrl, file.name);
             };
             reader.readAsDataURL(file);
-        });
+        }
+
+        document.getElementById('fileInput').addEventListener('change', handleImageSelection);
+        document.getElementById('uploadInput').addEventListener('change', handleImageSelection);
 
         function createCompositeImage(userImageUrl, originalFileName) {
             const borderImg = new Image();
@@ -155,7 +174,7 @@
                     
                     const previewEl = document.getElementById('preview');
                     previewEl.src = compositeDataUrl;
-                    previewEl.style.display = 'block'; // Changed to block to respect absolute centering better
+                    previewEl.style.display = 'block'; 
 
                     uploadToDrive(base64Data, originalFileName);
                 };
