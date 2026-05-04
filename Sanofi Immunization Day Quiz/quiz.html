@@ -6,23 +6,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     /* Strict viewport fitting: No scrolling, mobile responsive */
-    * { box-sizing: border-box; font-family: sans-serif; }
+    @font-face {
+      font-family: 'HelveticaNeue';
+      src: local('Helvetica Neue'), local('HelveticaNeue'), local('Helvetica');
+    }
+
+    * { box-sizing: border-box; font-family: 'HelveticaNeue', Helvetica, Arial, sans-serif; }
     
     html, body {
       margin: 0; padding: 0;
       width: 100vw; height: 100dvh; 
       overflow: hidden; /* Prevents scrolling */
-      background-color: #6a0dad; color: #ffffff;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      /* Background image */
+      background-image: url('bg.png');
+      background-size: cover;
+      background-position: top center;
+      background-repeat: no-repeat;
+      background-color: #8ce1fd; /* Fallback */
+      color: #000000;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
     }
 
-    /* Adjusted screen container to use more width */
+    /* Screen container aligned to account for the top background logo */
     .screen {
       display: none; 
       width: 90%; 
       max-width: 450px; 
       height: 100%; 
-      flex-direction: column; align-items: center; justify-content: center;
+      flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 26vh; /* Pushes content down below the logo */
       text-align: center;
     }
     .active-screen { display: flex; }
@@ -33,32 +45,50 @@
 
     input {
       width: 100%; padding: 15px; margin: 10px 0;
-      border-radius: 8px; border: none; font-size: 1rem; text-align: center;
+      border-radius: 30px; border: 2px solid #5ac8fa; font-size: 1rem; text-align: center;
+      outline: none;
     }
     
-    button {
-      background-color: #ffffff; color: #6a0dad;
-      border: none; border-radius: 25px; padding: 15px 25px; margin: 10px 0;
+    /* Reusable Button Styling */
+    .primary-btn, .option-btn {
+      background-color: #ffffff; 
+      color: #000000;
+      background-image: url('choice_container.png');
+      background-size: 100% 100%;
+      background-position: center;
+      background-repeat: no-repeat;
+      border: none; 
+      border-radius: 30px; 
+      padding: 14px 25px; 
+      margin: 8px 0;
       font-size: 1.1rem; font-weight: bold; cursor: pointer;
       width: 100%; transition: transform 0.1s;
     }
-    button:active { transform: scale(0.95); }
-    button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    
+    .primary-btn:active, .option-btn:active { 
+      background-image: url('choice_container.png');
+      transform: scale(0.98); 
+    }
+    .primary-btn:disabled { background-color: #cccccc; background-image: none; cursor: not-allowed; }
 
     /* Timer Display */
     #timer-display {
-      font-size: 1.3rem; font-weight: bold; color: #ffeb3b;
-      margin-bottom: 15px; background: rgba(0,0,0,0.2); 
-      padding: 8px 20px; border-radius: 20px;
+      font-size: 1.5rem; font-weight: bold; color: #fbbb6e; 
+      background: #ffffff; 
+      padding: 8px 35px; border-radius: 30px;
+      margin-bottom: 3vh;
+      display: inline-block;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    /* Question Container */
+    #question-container {
+      margin-bottom: 3vh;
     }
 
     /* Adjusted options for better vertical fit */
     #options-container {
-      width: 100%; display: flex; flex-direction: column; gap: 10px;
-    }
-    .option-btn { 
-      background-color: rgba(255,255,255,0.2); color: white; border: 2px solid white; 
-      margin: 0; padding: 12px; font-size: 1rem;
+      width: 100%; display: flex; flex-direction: column; gap: 4px;
     }
     
     /* Custom Dialog Overlay */
@@ -68,7 +98,7 @@
       z-index: 100; flex-direction: column; align-items: center; justify-content: center;
     }
     .dialog-box {
-      background: white; color: #6a0dad; width: 90%; max-width: 400px;
+      background: white; color: #000000; width: 90%; max-width: 400px;
       border-radius: 15px; padding: 25px; text-align: center;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
@@ -82,25 +112,26 @@
     <h2>Celebrating Our Commitment to Protecting Lives</h2>
     <p>Welcome to our World Immunization Week Quiz! 🎉 It's your chance to discover the incredible science behind the products we bring to babies, Adults & patients every day.</p>
     <p>Good luck — and let the miracles of science inspire you! 💙</p>
-    <button onclick="showScreen('register-screen')">Let's Begin</button>
+    <button class="primary-btn" onclick="showScreen('register-screen')">Let's Begin</button>
   </div>
 
   <!-- Screen 2: Registration -->
   <div id="register-screen" class="screen">
     <h2>Enter Your Details</h2>
     <input type="text" id="userName" placeholder="Full Name" required>
-    <input type="tel" id="userPhone" placeholder="Phone Number" required>
-    <button id="start-btn" onclick="registerUser()">Start Quiz</button>
-    <p id="error-msg" style="color: #ffcccc; display: none; margin-top: 10px;"></p>
+    <input type="email" id="userEmail" placeholder="Email Address" required>
+    <button class="primary-btn" id="start-btn" onclick="registerUser()">Start Quiz</button>
+    <p id="error-msg" style="color: #ff3b3b; display: none; margin-top: 10px;"></p>
   </div>
 
   <!-- Screen 3: Quiz Flow -->
   <div id="quiz-screen" class="screen">
-    <div id="timer-display">⏱️ 10s</div>
-    <h3 id="question-text"></h3>
+    <div id="timer-display">10s</div>
+    <div id="question-container"></div>
     <div id="options-container"></div>
-    <p id="progress-text" style="margin-top: 20px; font-size: 0.9rem; opacity: 0.8;"></p>
-    <p id="current-score-display" style="font-size: 0.9rem; font-weight: bold;">Score: 0</p>
+    <!-- Hidden to match the clean UI of the reference image -->
+    <p id="progress-text" style="display: none;"></p>
+    <p id="current-score-display" style="display: none;"></p>
   </div>
 
   <!-- Screen 4: Results -->
@@ -117,7 +148,7 @@
       <div id="dialog-icon" class="confetti"></div>
       <h2 id="dialog-title" style="margin-top: 0;"></h2>
       <p id="dialog-fact" style="font-size: 1rem; text-align: left; line-height: 1.4;"></p>
-      <button style="background: #6a0dad; color: white;" onclick="nextQuestion()">Next</button>
+      <button class="primary-btn" onclick="nextQuestion()">Next</button>
     </div>
   </div>
 
@@ -125,7 +156,7 @@
     // ==========================================
     // PASTE YOUR GOOGLE SCRIPT EXEC URL HERE
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRzbv9wdA_PJZlgpMbkzzAws8hLeJU7d-Nvkdk2ID4x7okRyPc85vUBzppTP_FVqxl/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzI1pjsfButkWE0bP4KupdVq25srm9KxpefQEv_56JzJGaZAzoeJdjKrIjolCfJSV16/exec";
 
     const questions = [
       { q: "Q1 — HEXAXIM 💉\nHow many diseases does it protect against in a single injection?", opts: ["3 diseases", "4 diseases", "5 diseases", "6 diseases"], ans: 3, fact: "Hexaxim is the '6-in-1' vaccine — one single shot protects against Diphtheria, Tetanus, Pertussis, Polio, Hepatitis B, and Hib." },
@@ -159,34 +190,35 @@
 
     function registerUser() {
       const name = document.getElementById('userName').value.trim();
-      const phone = document.getElementById('userPhone').value.trim();
+      const email = document.getElementById('userEmail').value.trim();
       const errorMsg = document.getElementById('error-msg');
       const btn = document.getElementById('start-btn');
 
-      if (!name || !phone) {
-        errorMsg.innerText = "Please enter both Name and Phone.";
+      if (!name || !email || !email.includes('@')) {
+        errorMsg.innerText = "Please enter your name and a valid email address.";
         errorMsg.style.display = "block";
         return;
       }
 
+      errorMsg.style.display = "none";
       btn.innerText = "Checking...";
       btn.disabled = true;
 
-      // Send request to Google Script
+      // Send request to Google Script to check if email exists
       fetch(SCRIPT_URL, {
         method: "POST",
-        body: JSON.stringify({ action: "checkUser", phone: phone }),
+        body: JSON.stringify({ action: "checkUser", email: email }),
         headers: { "Content-Type": "text/plain;charset=utf-8" } 
       })
       .then(response => response.json())
       .then(data => {
         if (data.exists) {
-          alert("You already took this quiz!");
+          alert("You already took this quiz with this email!");
           btn.innerText = "Start Quiz";
           btn.disabled = false;
         } else {
           userData.name = name;
-          userData.phone = phone;
+          userData.email = email;
           startQuiz();
         }
       })
@@ -208,7 +240,15 @@
 
     function loadQuestion() {
       const qData = questions[currentQ];
-      document.getElementById('question-text').innerText = qData.q;
+      
+      // Formatting question title to be bold and subtext to be normal weight
+      const parts = qData.q.split('\n');
+      let formattedQ = `<div style="font-size: 1.5rem; font-weight: bold; margin-bottom: 15px;">${parts[0]}</div>`;
+      if(parts.length > 1) {
+          formattedQ += `<div style="font-size: 1.1rem; font-weight: normal;">${parts[1]}</div>`;
+      }
+      document.getElementById('question-container').innerHTML = formattedQ;
+      
       document.getElementById('progress-text').innerText = `Question ${currentQ + 1} of 14`;
       
       const optsContainer = document.getElementById('options-container');
@@ -225,13 +265,13 @@
       // Start the Timer
       timeLeft = 10;
       const timerDisplay = document.getElementById('timer-display');
-      timerDisplay.innerText = `⏱️ ${timeLeft}s`;
-      timerDisplay.style.color = "#ffeb3b"; // Reset color to yellow
+      timerDisplay.innerText = `${timeLeft}s`;
+      timerDisplay.style.color = "#fca048"; // Reset color to Orange
 
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         timeLeft--;
-        timerDisplay.innerText = `⏱️ ${timeLeft}s`;
+        timerDisplay.innerText = `${timeLeft}s`;
         
         // Make timer turn red when low
         if (timeLeft <= 3) {
@@ -308,7 +348,7 @@
       else { badge = "🔬"; title = "Discovery Mode — The science is waiting for you!"; }
 
       let payload = {
-        name: userData.name, phone: userData.phone,
+        name: userData.name, email: userData.email, // Passing email instead of phone
         q1: userData.q[0], q2: userData.q[1], q3: userData.q[2], q4: userData.q[3],
         q5: userData.q[4], q6: userData.q[5], q7: userData.q[6], q8: userData.q[7],
         q9: userData.q[8], q10: userData.q[9], q11: userData.q[10], q12: userData.q[11],
