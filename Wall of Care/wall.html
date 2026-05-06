@@ -51,8 +51,8 @@
         // PASTE YOUR GOOGLE SCRIPT WEB APP URL HERE
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyb5VB_8xCDQk5b05TwxJIa_hWk02ujSca7BGhI3lGHmCbPAyg_HAqrDlzeWFAdxIYCA/exec';
         
-        let displayedPhotos = new Set(); // Tracks what Drive files we have already seen
-        let onScreenImages = []; // Tracks the actual DOM elements and their physical locations
+        let displayedPhotos = new Set(); 
+        let onScreenImages = []; 
 
         const MAX_ON_SCREEN = 50; 
         const FRAME_MARGIN = 20; 
@@ -61,12 +61,13 @@
         let SCREEN_W, SCREEN_H;
         let EXCLUDE_X_MIN, EXCLUDE_X_MAX, EXCLUDE_Y_MIN, EXCLUDE_Y_MAX;
 
-        // Function to update bounds based on current screen size
+        const IMG_BOX_WIDTH = 135; 
+        const IMG_BOX_HEIGHT = 165; 
+
         function updateScreenDimensions() {
             SCREEN_W = window.innerWidth;
             SCREEN_H = window.innerHeight;
 
-            // Recalculate exclusion zone based on new dimensions
             EXCLUDE_X_MIN = SCREEN_W * 0.30; 
             EXCLUDE_X_MAX = SCREEN_W * 0.70; 
             EXCLUDE_Y_MIN = SCREEN_H * 0.02; 
@@ -85,14 +86,11 @@
                 outer.style.width = SCREEN_W + 'px';
                 outer.style.height = SCREEN_H + 'px';
                 outer.style.borderWidth = FRAME_MARGIN + 'px';
-                outer.style.boxSizing = "border-box"; // Ensures border doesn't push div off screen
+                outer.style.boxSizing = "border-box"; 
             }
         }
 
-        // Calculate sizes on initial load
         document.addEventListener("DOMContentLoaded", updateScreenDimensions);
-
-        // Recalculate if the screen size changes (e.g., screen duplication connects)
         window.addEventListener('resize', updateScreenDimensions);
 
         function fetchPhotos() {
@@ -108,60 +106,76 @@
                 });
         }
 
-        function getRandomPosition() {
-            // Box size for collision calculation
-            const imgBoxWidth = 135; 
-            const imgBoxHeight = 165; 
+        // --- THE GATEKEEPER ---
+        // This function guarantees an area is 100% safe.
+        function isStrictlySafe(x, y) {
+            const rightEdge = x + IMG_BOX_WIDTH;
+            const bottomEdge = y + IMG_BOX_HEIGHT;
+
+            // 1. ABSOLUTE EXCLUSION ZONE CHECK
+            const inExclusionX = (x < EXCLUDE_X_MAX) && (rightEdge > EXCLUDE_X_MIN);
+            const inExclusionY = (y < EXCLUDE_Y_MAX) && (bottomEdge > EXCLUDE_Y_MIN);
+            if (inExclusionX && inExclusionY) {
+                return false; // FAILED: Inside exclusion zone
+            }
+
+            // 2. OVERLAP CHECK
+            for (let i = 0; i < onScreenImages.length; i++) {
+                let existingBox = onScreenImages[i].box;
+                if (x < existingBox.x + existingBox.w + 2 &&
+                    rightEdge + 2 > existingBox.x &&
+                    y < existingBox.y + existingBox.h + 2 &&
+                    bottomEdge + 2 > existingBox.y) {
+                    return false; // FAILED: Overlaps another image
+                }
+            }
             
+            return true; // PASSED: Safe to place
+        }
+
+        function getRandomPosition() {
             let x, y;
-            let validPosition = false;
             let safetyCounter = 0; 
 
-            while (!validPosition && safetyCounter < 3000) {
-                x = Math.floor(Math.random() * (SCREEN_W - imgBoxWidth - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
-                y = Math.floor(Math.random() * (SCREEN_H - imgBoxHeight - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
+            while (safetyCounter < 1500) {
+                x = Math.floor(Math.random() * (SCREEN_W - IMG_BOX_WIDTH - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
+                y = Math.floor(Math.random() * (SCREEN_H - IMG_BOX_HEIGHT - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
 
-                const imgRightEdge = x + imgBoxWidth;
-                const imgBottomEdge = y + imgBoxHeight;
-
-                // 1. Check if it enters the inner exclusion zone
-                const overlapsX = (x < EXCLUDE_X_MAX) && (imgRightEdge > EXCLUDE_X_MIN);
-                const overlapsY = (y < EXCLUDE_Y_MAX) && (imgBottomEdge > EXCLUDE_Y_MIN);
-                const inExclusionZone = overlapsX && overlapsY;
-
-                // 2. Check if it overlaps with any currently displayed image
-                let overlapsOtherImage = false;
-                if (!inExclusionZone) {
-                    for (let i = 0; i < onScreenImages.length; i++) {
-                        let existingBox = onScreenImages[i].box;
-                        if (x < existingBox.x + existingBox.w + 2 &&
-                            imgRightEdge + 2 > existingBox.x &&
-                            y < existingBox.y + existingBox.h + 2 &&
-                            imgBottomEdge + 2 > existingBox.y) {
-                            
-                            overlapsOtherImage = true;
-                            break; 
-                        }
-                    }
-                }
-
-                // Accept coordinates if safe
-                if (!inExclusionZone && !overlapsOtherImage) {
-                    validPosition = true;
+                if (isStrictlySafe(x, y)) {
+                    return { x, y, w: IMG_BOX_WIDTH, h: IMG_BOX_HEIGHT };
                 }
                 safetyCounter++;
             }
             
-            return { x, y, w: imgBoxWidth, h: imgBoxHeight };
+            return null; // Could not find a safe random spot
         }
 
         function displayPhoto(fileId) {
             const container = document.getElementById('photo-container');
+            let safePos = getRandomPosition();
 
-            // --- THE 50 IMAGE LIMIT LOGIC ---
-            if (onScreenImages.length >= MAX_ON_SCREEN) {
-                const oldestImage = onScreenImages.shift(); 
+            // FIFO LOGIC
+            if (!safePos || onScreenImages.length >= MAX_ON_SCREEN) {
+                let oldestImage = onScreenImages.shift(); 
                 oldestImage.element.remove(); 
+
+                if (!safePos) {
+                    // Check if the old image's spot is STILL strictly safe (in case window resized)
+                    if (isStrictlySafe(oldestImage.box.x, oldestImage.box.y)) {
+                        safePos = oldestImage.box;
+                    } else {
+                        // If the old spot is now in the exclusion zone, we must find a new one
+                        safePos = getRandomPosition();
+                    }
+                }
+            }
+
+            // --- FINAL SAFETY CATCH ---
+            // If the code reaches this point and still doesn't have a safe spot, 
+            // it aborts completely rather than risking the exclusion zone.
+            if (!safePos) {
+                console.log("Image aborted: No safe space available outside exclusion zone.");
+                return; 
             }
 
             const div = document.createElement('div');
@@ -170,8 +184,6 @@
             const imgUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
             div.innerHTML = `<img src="${imgUrl}">`;
 
-            // Get a safe, non-overlapping spot
-            const safePos = getRandomPosition();
             const randomRotation = Math.floor(Math.random() * 30) - 15;
 
             div.style.left = `${safePos.x}px`;
@@ -180,7 +192,6 @@
 
             container.appendChild(div);
 
-            // Add this new image and its bounding box to our active tracking array
             onScreenImages.push({
                 element: div,
                 box: safePos
