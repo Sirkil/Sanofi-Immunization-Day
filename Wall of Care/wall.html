@@ -23,24 +23,6 @@
             z-index: 10; /* Ensures photos stay on top of the colored zones */
         }
         
-        /* --- NEW STYLES FOR VISIBLE RESTRICTED ZONES --- */
-        #exclusion-zone {
-            position: absolute;
-            background-color: rgba(255, 0, 0, 0.4); /* Semi-transparent red */
-            pointer-events: none; /* Prevents the box from blocking clicks */
-            z-index: 5;
-        }
-
-        #outer-frame {
-            position: absolute;
-            top: 0;
-            left: 0;
-            border-style: solid;
-            border-color: rgba(0, 0, 255, 0.4); /* Semi-transparent blue border */
-            pointer-events: none;
-            z-index: 5;
-        }
-        /* ----------------------------------------------- */
 
         .polaroid {
             position: absolute;
@@ -88,7 +70,7 @@
             EXCLUDE_X_MIN = SCREEN_W * 0.30; 
             EXCLUDE_X_MAX = SCREEN_W * 0.70; 
             EXCLUDE_Y_MIN = SCREEN_H * 0.02; 
-            EXCLUDE_Y_MAX = SCREEN_H * 0.90;
+            EXCLUDE_Y_MAX = SCREEN_H * 0.80;
 
             const ez = document.getElementById('exclusion-zone');
             if (ez) {
