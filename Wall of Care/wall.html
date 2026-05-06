@@ -4,11 +4,11 @@
     <title>Live Photo Wall</title>
     <style>
         body { 
-            /* Fixed exact dimensions for the big screen */
-            width: 1701px;
-            height: 1134px;
+            /* Changed to Viewport units for dynamic scaling */
+            width: 100vw;
+            height: 100vh;
             background: url('wall.png') no-repeat center center; 
-            background-size: cover; 
+            background-size: cover; /* Ensures the image fills the screen */
             overflow: hidden; 
             margin: 0; 
             position: relative;
@@ -27,7 +27,6 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
             width: 120px; /* Size of the image on the wall */
             animation: fadeIn 1.5s ease-in-out; 
-            /* Added transition for smoother potential overlapping fallback */
             transition: opacity 0.5s;
         }
         
@@ -54,29 +53,45 @@
         let onScreenImages = []; // Tracks the actual DOM elements and their physical locations
 
         const MAX_ON_SCREEN = 50; 
-        const SCREEN_W = 1701;
-        const SCREEN_H = 1134;
-
-        // Define the exact restricted area (middle column for Logo + QR)
-        const EXCLUDE_X_MIN = SCREEN_W * 0.30; 
-        const EXCLUDE_X_MAX = SCREEN_W * 0.70; 
-        const EXCLUDE_Y_MIN = SCREEN_H * 0.02; 
-        const EXCLUDE_Y_MAX = SCREEN_H * 0.75;
-
         const FRAME_MARGIN = 20; 
 
-        document.addEventListener("DOMContentLoaded", () => {
+        // Dynamic dimension variables
+        let SCREEN_W, SCREEN_H;
+        let EXCLUDE_X_MIN, EXCLUDE_X_MAX, EXCLUDE_Y_MIN, EXCLUDE_Y_MAX;
+
+        // Function to update bounds based on current screen size
+        function updateScreenDimensions() {
+            SCREEN_W = window.innerWidth;
+            SCREEN_H = window.innerHeight;
+
+            // Recalculate exclusion zone based on new dimensions
+            EXCLUDE_X_MIN = SCREEN_W * 0.30; 
+            EXCLUDE_X_MAX = SCREEN_W * 0.70; 
+            EXCLUDE_Y_MIN = SCREEN_H * 0.02; 
+            EXCLUDE_Y_MAX = SCREEN_H * 0.75;
+
             const ez = document.getElementById('exclusion-zone');
-            ez.style.left = EXCLUDE_X_MIN + 'px';
-            ez.style.width = (EXCLUDE_X_MAX - EXCLUDE_X_MIN) + 'px';
-            ez.style.top = EXCLUDE_Y_MIN + 'px';
-            ez.style.height = (EXCLUDE_Y_MAX - EXCLUDE_Y_MIN) + 'px';
+            if (ez) {
+                ez.style.left = EXCLUDE_X_MIN + 'px';
+                ez.style.width = (EXCLUDE_X_MAX - EXCLUDE_X_MIN) + 'px';
+                ez.style.top = EXCLUDE_Y_MIN + 'px';
+                ez.style.height = (EXCLUDE_Y_MAX - EXCLUDE_Y_MIN) + 'px';
+            }
 
             const outer = document.getElementById('outer-frame');
-            outer.style.width = SCREEN_W + 'px';
-            outer.style.height = SCREEN_H + 'px';
-            outer.style.borderWidth = FRAME_MARGIN + 'px';
-        });
+            if (outer) {
+                outer.style.width = SCREEN_W + 'px';
+                outer.style.height = SCREEN_H + 'px';
+                outer.style.borderWidth = FRAME_MARGIN + 'px';
+                outer.style.boxSizing = "border-box"; // Ensures border doesn't push div off screen
+            }
+        }
+
+        // Calculate sizes on initial load
+        document.addEventListener("DOMContentLoaded", updateScreenDimensions);
+
+        // Recalculate if the screen size changes (e.g., screen duplication connects)
+        window.addEventListener('resize', updateScreenDimensions);
 
         function fetchPhotos() {
             fetch(SCRIPT_URL)
@@ -92,7 +107,7 @@
         }
 
         function getRandomPosition() {
-            // Box size for collision calculation (slightly larger than 120px to account for rotation/margins)
+            // Box size for collision calculation
             const imgBoxWidth = 135; 
             const imgBoxHeight = 165; 
             
@@ -100,7 +115,6 @@
             let validPosition = false;
             let safetyCounter = 0; 
 
-            // Increased safety counter to 3000 because fitting 50 non-overlapping boxes is a tight squeeze
             while (!validPosition && safetyCounter < 3000) {
                 x = Math.floor(Math.random() * (SCREEN_W - imgBoxWidth - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
                 y = Math.floor(Math.random() * (SCREEN_H - imgBoxHeight - (FRAME_MARGIN * 2))) + FRAME_MARGIN;
@@ -118,7 +132,6 @@
                 if (!inExclusionZone) {
                     for (let i = 0; i < onScreenImages.length; i++) {
                         let existingBox = onScreenImages[i].box;
-                        // A buffer of 2 pixels so they don't touch perfectly flush
                         if (x < existingBox.x + existingBox.w + 2 &&
                             imgRightEdge + 2 > existingBox.x &&
                             y < existingBox.y + existingBox.h + 2 &&
@@ -130,14 +143,13 @@
                     }
                 }
 
-                // If it's safe from the middle AND safe from other images, accept coordinates
+                // Accept coordinates if safe
                 if (!inExclusionZone && !overlapsOtherImage) {
                     validPosition = true;
                 }
                 safetyCounter++;
             }
             
-            // Note: If safetyCounter hits 3000 (screen is completely full), it will fallback to the last generated X/Y
             return { x, y, w: imgBoxWidth, h: imgBoxHeight };
         }
 
@@ -145,11 +157,8 @@
             const container = document.getElementById('photo-container');
 
             // --- THE 50 IMAGE LIMIT LOGIC ---
-            // If we already have 50 images on the screen, remove the oldest one
             if (onScreenImages.length >= MAX_ON_SCREEN) {
-                // Remove the first item from the array (which is the oldest)
                 const oldestImage = onScreenImages.shift(); 
-                // Physically remove it from the HTML DOM
                 oldestImage.element.remove(); 
             }
 
